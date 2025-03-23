@@ -15,7 +15,7 @@ router.get("/products",getAllProducts)
 
 // // Get a single product by ID
 // GET /api/products/:id
-router.get("/products/:productId",authUser,getOneProduct)
+router.get("/products/:productId",getOneProduct)
 
 
 

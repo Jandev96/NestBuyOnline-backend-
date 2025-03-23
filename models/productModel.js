@@ -1,5 +1,19 @@
 import mongoose from 'mongoose';
 
+const allowedCategories = [
+  "Electronics",
+  "Clothing",
+  "Home & Kitchen",
+  "Beauty & Health",
+  "Sports",
+  "Automotive",
+  "Books",
+  "Toys",
+  "Grocery",
+  "Furniture",
+];
+
+
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -16,11 +30,13 @@ const productSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    category: {
+    category: [{
       type: String,
       required: true,
       trim: true,
+      enum:allowedCategories,
     },
+  ],
     stock: {
       type: Number,
       required: true,
