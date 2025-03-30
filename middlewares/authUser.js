@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 export const authUser =(req, res, next)=>{
     try {
 
-        console.log(req.cookies)
+        
         //collect token from cookies
         const {token}=req.cookies
         

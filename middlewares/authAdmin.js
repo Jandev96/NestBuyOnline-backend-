@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken"
 export const authAdmin =(req, res, next)=>{
     try {
 
-        console.log(req.cookies)
         //collect token from cookies
         const {token}=req.cookies
         
