@@ -3,110 +3,98 @@ import bcrypt from "bcrypt";
 import { generateToken } from "../utils/token.js";
 
 
-export const signup = async(req, res, next)=>{
-    try{
-        // res.json({data: data, message:"signup success"})
-        console.log("sign up is working")
+export const signup = async (req, res, next) => {
+    try {
+        console.log("sign up is working");
 
-        //collect user data
-        const {username,email,password,confirmPassword,address,profilePic}=req.body
+        const { username, email, password, confirmPassword, address, profilePic } = req.body;
 
-        //data validation
-        if(!username || !email || !password || !confirmPassword  ){
-            return res.status(400).json({message:"all fields required"})
-        }
-        console.log(username,email,password)
-
-      
-
-
-
-        //check if user already exist 
-        const userExist= await User.findOne({email}) 
-
-        if(userExist){
-          return  res.status(400).json({message:"user already exist"})
-        }
-        if(password!=confirmPassword ){
-            return res.status(400).json({message:'confirm password error'})
+        if (!username || !email || !password || !confirmPassword) {
+            return res.status(400).json({ message: "All fields required" });
         }
 
-          //password hashing
+        // Check if user already exists
+        const userExist = await User.findOne({ email });
+
+        if (userExist) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({ message: "Confirm password error" });
+        }
+
+        // Hash password
         const hashPassword = bcrypt.hashSync(password, 10);
-        
-        const newUser= new User({username,email,password:hashPassword,address,profilePic})
-        await newUser.save()
 
-        //generate token id and role using
-        const token =generateToken(newUser._id,'user')
-        res.cookie('token',token)
+        const newUser = new User({ username, email, password: hashPassword, address, profilePic });
+        await newUser.save();
 
+        // Generate token
+        const token = generateToken(newUser._id, "user");
 
+        // Set cookie with authentication token
+        res.cookie("token", token, {
+            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: true, 
+        });
 
-        res.json({data: newUser, message:'signup success'})
+        res.json({ data: newUser, message: "Signup successful" });
 
-
-
+    } catch (error) {
+        res.status(error.statusCode || 500).json({ message: error.message || "Internal Server Error" });
+        console.log(error);
     }
-    catch(error){
-        res.status(error.statusCode || 500).json({message: error.message || "Internal Server Error"})
-        console.log(error)
-    }
-}
+};
+
 
 //user login page
 
+export const userLogin = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
 
-export const userLogin =async (req,res, next)=>{
-    try{
-       //collect user data
-       const {email,password}=req.body
-        
-              
+        if (!email || !password) {
+            return res.status(400).json({ message: "All fields required" });
+        }
 
+        const userExist = await User.findOne({ email });
 
-       //data validation
-       if(!email||!password){
-        return res.status(400).json({message:"all fields required"})
-       }
+        if (!userExist) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-       //user exist -check
-       const userExist= await User.findOne({email})
+        const passwordMatch = bcrypt.compareSync(password, userExist.password);
 
-       if(!userExist){
-        return res.status(404).json({message:"user not found"})
-       }
+        if (!passwordMatch) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
 
+        if (!userExist.isActive) {
+            return res.status(401).json({ message: "User account is not valid" });
+        }
 
+        // Generate token
+        const token = generateToken(userExist._id, "user");
 
-       // check db password is matched
-       const passwordMatch=bcrypt.compareSync(password, userExist.password)
+        // Set cookie with authentication token
+        res.cookie("token", token, {
+            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: true, 
+        });
 
-       if(!passwordMatch){
-        return res.status(401).json({message:"invalid credentials"})
-       }
+        const { password: _, ...userWithoutPassword } = userExist.toObject();
 
-       if(!userExist.isActive){
-        return res.status(401).json({message:"user account is not valid"})
-       }
-       
-       //generate token 
-       const token =generateToken(userExist._id,'user')
-       res.cookie('token',token)
+        res.json({ data: userWithoutPassword, message: "Login successful" });
 
-       const { password: _, ...userWithoutPassword } = userExist.toObject();
-
-       res.json({data: userWithoutPassword, message:'login successful'})
-
-
+    } catch (error) {
+        res.status(error.statusCode || 500).json({ message: error.message || "Internal Server Error" });
+        console.log(error);
     }
-    catch(error){
-        res.status(error.statusCode || 500).json({message: error.message || "Internal Server Error"})
-        console.log(error)
-    }
+};
 
-   
-}
 
 export const userProfile =async (req, res, next)=>{
     try{
