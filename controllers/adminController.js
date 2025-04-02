@@ -92,7 +92,11 @@ export const adminLogin =async (req,res, next)=>{
        
        //generate token 
        const token =generateToken(adminExist._id,'admin')
-       res.cookie('token',token)
+       res.cookie("token", token, {
+        sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true, 
+    });
 
        const { password: _, ...userWithoutPassword } = adminExist.toObject();
 
