@@ -83,7 +83,7 @@ export const userLogin = async (req, res, next) => {
             sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
             secure: process.env.NODE_ENV === "production",
             httpOnly: true, 
-            domain:null,
+            
         });
 
         const { password: _, ...userWithoutPassword } = userExist.toObject();
