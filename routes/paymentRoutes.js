@@ -40,8 +40,8 @@ router.post("/create-checkout-session", authUser, async (req, res) => {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `${client_domain}/user/payment/success`,
-      cancel_url: `${client_domain}/user/payment/cancel`,
+      success_url: `${client_domain}user/payment/success`,
+      cancel_url: `${client_domain}user/payment/cancel`,
     });
 
     console.log("Stripe Session Created:", session.id);
