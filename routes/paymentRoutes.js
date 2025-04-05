@@ -10,7 +10,7 @@ const router = e.Router();
 router.post("/create-checkout-session", authUser, async (req, res) => {
   try {
     const { products } = req.body;
-   
+    console.log("Received products:", products);
 
     const lineItems = products.map((product) => {
       const image =
@@ -40,14 +40,14 @@ router.post("/create-checkout-session", authUser, async (req, res) => {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `${client_domain}user/payment/success`,
-      cancel_url: `${client_domain}user/payment/cancel`,
+      success_url: `${client_domain}/user/payment/success`,
+      cancel_url: `${client_domain}/user/payment/cancel`,
     });
 
     console.log("Stripe Session Created:", session.id);
     res.json({ success: true, sessionId: session.id });
   } catch (error) {
-    
+    console.error("Stripe Checkout Error:", error);
     res
       .status(error.statusCode || 500)
       .json({ success: false, message: "Stripe error", error: error.message });
