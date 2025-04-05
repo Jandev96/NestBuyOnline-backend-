@@ -171,4 +171,29 @@ export const getCart = async (req, res) => {
     }
   };
   
+  export const clearCart = async (req, res) => {
+    try {
+      // Authenticate the user
+      authUser(req, res, async () => {
+        const userId = req.user.id;
   
+        // Find the user's cart
+        const cart = await Cart.findOne({ user: userId });
+  
+        if (!cart) {
+          return res.status(404).json({ message: "Cart not found" });
+        }
+  
+        // Clear the cart
+        cart.products = [];
+        cart.totalPrice = 0;
+  
+        // Save the updated cart
+        await cart.save();
+  
+        res.status(200).json({ message: "Cart cleared successfully", cart });
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
