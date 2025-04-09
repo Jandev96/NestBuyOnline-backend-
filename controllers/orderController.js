@@ -1,109 +1,193 @@
+// controllers/orderController.js
 import mongoose from "mongoose";
-import Order from "../models/orderModel.js"
-import Cart from "../models/cartModel.js";
-import Product from "../models/productModel.js";
-import { startSession } from "mongoose";
-import { authUser } from "../middlewares/authUser.js";
+import Order from '../models/orderModel.js';
+import Cart from '../models/cartModel.js';
+import Product from '../models/productModel.js';
+import User from '../models/userModel.js';
+import { generateInvoicePDF } from '../utils/invoiceGenerator.js';
+import { startSession } from 'mongoose';
+import nodemailer from 'nodemailer';
 
-// Create Order (Handles out-of-stock cases and fetches totalPrice from cart)
-
+// Create Order
 export const createOrder = async (req, res) => {
-    const session = await startSession();
-    session.startTransaction();
+  const session = await startSession();
+  session.startTransaction();
 
-    // Define originalStock outside the try block
-    const originalStock = new Map();
+  const originalStock = new Map();
 
-    try {
-        const customerId = req.user?.id;
-        
-        if (!customerId) {
-            await session.abortTransaction();
-            return res.status(401).json({ message: "User not authorized" });
-        }
-
-        console.log("User ID:", customerId); // Debugging Log
-
-        // Fetch the user's cart (without session to avoid potential issues)
-        const cart = await Cart.findOne({ user: customerId });
-
-        console.log("Cart Retrieved:", cart); // Debugging Log
-
-        if (!cart || !cart.products || cart.products.length === 0) {
-            await session.abortTransaction();
-            return res.status(404).json({ message: "Cart is empty or not found" });
-        }
-
-        console.log("Cart Products:", cart.products); // Debugging Log
-
-        // Recalculate total price
-        cart.calculateTotalPrice();
-        await cart.save({ session });
-
-        // Check stock and update inventory
-        for (let item of cart.products) {
-            const product = await Product.findById(item.productId).session(session);
-            if (!product || product.stock < item.quantity) {
-                await session.abortTransaction();
-                return res.status(400).json({ message: "Some products are out of stock" });
-            }
-            originalStock.set(product._id.toString(), product.stock);
-            product.stock -= item.quantity;
-            await product.save({ session });
-        }
-
-        // Set estimated delivery date
-        const estimatedDelivery = new Date();
-        estimatedDelivery.setDate(estimatedDelivery.getDate() + Math.floor(Math.random() * 4) + 3);
-
-        // Apply discounts and tax
-        const discount = 0;
-        const tax = cart.totalPrice * 0.1;
-        const finalPrice = cart.totalPrice - discount + tax;
-
-        // Prepare order products
-        const orderProducts = cart.products.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price
-        }));
-
-        // Create the order
-        const order = new Order({
-            customerId,
-            products: orderProducts,
-            totalPrice: finalPrice,
-            discount,
-            tax,
-            shippingAddress: req.body.shippingAddress,
-            estimatedDelivery,
-        });
-
-        await order.save({ session });
-
-        // Clear cart
-        await Cart.deleteOne({ _id: cart._id }, { session });
-
-        await session.commitTransaction();
-        res.status(201).json({ message: "Order placed successfully", order });
-    } catch (error) {
-        await session.abortTransaction();
-
-        // Restore stock if needed
-        for (let [productId, stock] of originalStock) {
-            await Product.findByIdAndUpdate(productId, { stock }, { session });
-        }
-
-        console.error("Order Error:", error); // Log full error for debugging
-        res.status(500).json({ message: "Error placing order", error: error.message });
-    } finally {
-        session.endSession();
+  try {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      await session.abortTransaction();
+      return res.status(401).json({ message: "User not authorized" });
     }
+
+    const cart = await Cart.findOne({ user: customerId }).populate({
+      path: 'products.productId',
+      select: 'name price stock'
+    });
+    if (!cart || !cart.products || cart.products.length === 0) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Cart is empty or not found" });
+    }
+
+    cart.calculateTotalPrice();
+    await cart.save({ session });
+
+    for (let item of cart.products) {
+      const product = item.productId;
+      if (!product || product.stock < item.quantity) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: `Product ${product.name} is out of stock` });
+      }
+      originalStock.set(product._id.toString(), product.stock);
+      product.stock -= item.quantity;
+      await product.save({ session });
+    }
+
+    const estimatedDelivery = new Date();
+    estimatedDelivery.setDate(estimatedDelivery.getDate() + Math.floor(Math.random() * 4) + 3);
+
+    const discount = 0;
+    const tax = cart.totalPrice * 0.1;
+    const finalPrice = cart.totalPrice - discount + tax;
+
+    const orderProducts = cart.products.map(item => ({
+      productId: item.productId._id,
+      name: item.productId.name,
+      quantity: item.quantity,
+      price: item.price
+    }));
+
+    
+
+    const order = new Order({
+      customerId,
+      products: orderProducts,
+      totalPrice: finalPrice,
+      discount,
+      tax,
+      shippingAddress: req.body.shippingAddress,
+      estimatedDelivery,
+    });
+
+    await order.save({ session });
+    await Cart.deleteOne({ _id: cart._id }, { session });
+
+    await session.commitTransaction();
+
+    const populatedOrder = await Order.findById(order._id);
+
+    const user = await User.findById(customerId);
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const pdfBuffer = await generateInvoicePDF({ ...populatedOrder.toObject(), products: orderProducts }, user);
+
+    const mailOptions = {
+      from: `"YourShop" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Order Confirmation",
+      html: `
+        <h2>Thank you for your order, ${user.username}!</h2>
+        <p>Your order has been placed successfully. Estimated Delivery: ${order.estimatedDelivery.toDateString()}</p>
+        <p>We'll notify you when it ships.</p>
+      `,
+      attachments: [
+        {
+          filename: `Invoice-${order._id}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf"
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(201).json({ message: "Order placed successfully", order: populatedOrder });
+  } catch (error) {
+    try {
+      await session.abortTransaction();
+    } catch (abortErr) {
+      console.error("Abort Transaction Error:", abortErr.message);
+    }
+
+    for (let [productId, stock] of originalStock) {
+      await Product.findByIdAndUpdate(productId, { stock });
+    }
+
+    console.error("Order Error:", error);
+    res.status(500).json({ message: "Error placing order", error: error.message });
+  } finally {
+    session.endSession();
+  }
 };
 
-  
 
-// Get all Orders (Admin only)
+
+// Update Order Status
+export const updateOrderStatus = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid order ID" });
+    }
+
+    const updates = {
+      status: req.body.status,
+      $push: { statusHistory: { status: req.body.status } },
+    };
+
+    if (req.body.status === "Shipped" && req.body.trackingNumber) {
+      updates.trackingNumber = req.body.trackingNumber;
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    )
+      .populate("products.productId", "name price image")
+      .populate("customerId", "email username")
+      .select("status estimatedDelivery customerId trackingNumber");
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"YourShop" <${process.env.EMAIL_USER}>`,
+      to: updatedOrder.customerId.email,
+      subject: `Order Status Updated - ${updatedOrder.status}`,
+      html: `
+        <h2>Hi ${updatedOrder.customerId.username},</h2>
+        <p>Your order status has been updated to <strong>${updatedOrder.status}</strong>.</p>
+        <p>Estimated Delivery: ${new Date(updatedOrder.estimatedDelivery).toDateString()}</p>
+        ${updatedOrder.trackingNumber ? `<p>Tracking Number: <strong>${updatedOrder.trackingNumber}</strong></p>` : ""}
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(400).json({ message: "Error updating order status", error: error.message });
+  }
+};
+
+// Get All Orders (Admin only)
 export const getOrders = async (req, res) => {
   try {
     const orders = await Order.find()
@@ -132,60 +216,31 @@ export const getUserOrders = async (req, res) => {
 
 // Get Order by ID
 export const getOrderById = async (req, res) => {
-    try {
-      console.log("Received Request Params:", req.params); // Debugging
-  
-      if (!req.params.id) {
-        return res.status(400).json({ message: "Order ID is missing in the request." });
-      }
-  
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ message: "Invalid order ID" });
-      }
-  
-      const order = await Order.findById(req.params.id)
-        .populate("products.productId", "name price image")
-        .populate("customerId", "username email")
-        .select("orderDate status estimatedDelivery products totalPrice");
-  
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-  
-      res.json(order);
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching order", error: error.message });
-    }
-  };
-  
-  
-
-// Update Order Status (Admin only)
-export const updateOrderStatus = async (req, res) => {
   try {
+    if (!req.params.id) {
+      return res.status(400).json({ message: "Order ID is missing in the request." });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: "Invalid order ID" });
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
-    )
+    const order = await Order.findById(req.params.id)
       .populate("products.productId", "name price image")
-      .select("status estimatedDelivery");
+      .populate("customerId", "username email")
+      .select("orderDate status estimatedDelivery products totalPrice");
 
-    if (!updatedOrder) {
+    if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res.json(updatedOrder);
+    res.json(order);
   } catch (error) {
-    res.status(400).json({ message: "Error updating order status", error: error.message });
+    res.status(500).json({ message: "Error fetching order", error: error.message });
   }
 };
 
-// Delete Order (Admin only) & Restore Stock if Order is Cancelled
+// Delete Order (Admin only)
 export const deleteOrder = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -197,7 +252,6 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Restore stock for all products in the canceled order
     for (let item of order.products) {
       const product = await Product.findById(item.productId);
       if (product) {
@@ -212,4 +266,3 @@ export const deleteOrder = async (req, res) => {
     res.status(500).json({ message: "Error deleting order", error: error.message });
   }
 };
-
