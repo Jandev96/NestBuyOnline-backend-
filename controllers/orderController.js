@@ -90,7 +90,7 @@ export const createOrder = async (req, res) => {
     const pdfBuffer = await generateInvoicePDF({ ...populatedOrder.toObject(), products: orderProducts }, user);
 
     const mailOptions = {
-      from: `"YourShop" <${process.env.EMAIL_USER}>`,
+      from: `"NestBuy" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Order Confirmation",
       html: `

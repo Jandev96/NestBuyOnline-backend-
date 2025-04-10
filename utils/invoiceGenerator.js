@@ -68,8 +68,8 @@ export const generateInvoicePDF = async (order, user) => {
       doc.font(normalFont).fontSize(10)
         .text(p.name || p.productId, columnPositions.item, itemY)
         .text(p.quantity.toString(), columnPositions.quantity, itemY)
-        .text(`$${p.price.toFixed(2)}`, columnPositions.unitPrice, itemY)
-        .text(`$${total}`, columnPositions.total, itemY);
+        .text(`INR ${p.price.toFixed(2)}`, columnPositions.unitPrice, itemY)
+        .text(`INR ${total}`, columnPositions.total, itemY);
 
       doc.moveDown(1);
     });
@@ -77,23 +77,24 @@ export const generateInvoicePDF = async (order, user) => {
     // Summary
     doc.moveDown(2);
     const summaryStartY = doc.y;
-    const summaryX = 350;
-
-    doc.fontSize(10)
-      .text("Subtotal:", summaryX, summaryStartY)
-      .text("Tax:", summaryX, doc.y)
-      .text("Discount:", summaryX, doc.y);
-
-    doc.font(headingFont).text("Total:", summaryX, doc.y);
-    doc.font(normalFont);
-
+    const labelX = 350;
     const valueX = 470;
-    doc.text(`$${(order.totalPrice - order.tax + order.discount).toFixed(2)}`, valueX, summaryStartY)
-      .text(`$${order.tax.toFixed(2)}`, valueX, doc.y)
-      .text(`-$${order.discount.toFixed(2)}`, valueX, doc.y);
 
-    doc.font(headingFont)
-      .text(`$${order.totalPrice.toFixed(2)}`, valueX, doc.y);
+    doc.fontSize(10).font(normalFont);
+    doc.text("Subtotal:", labelX, summaryStartY);
+    doc.text(`INR ${(order.totalPrice - order.tax + order.discount).toFixed(2)}`, valueX, summaryStartY);
+
+    const taxY = doc.y + 5;
+    doc.text("Tax:", labelX, taxY);
+    doc.text(`INR ${order.tax.toFixed(2)}`, valueX, taxY);
+
+    const discountY = doc.y + 5;
+    doc.text("Discount:", labelX, discountY);
+    doc.text(`INR ${order.discount.toFixed(2)}`, valueX, discountY);
+
+    const totalY = doc.y + 10;
+    doc.font(headingFont).text("Total:", labelX, totalY);
+    doc.text(`INR ${order.totalPrice.toFixed(2)}`, valueX, totalY);
 
     // Footer
     doc.moveDown(4);
