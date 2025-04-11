@@ -10,7 +10,7 @@ const router = e.Router();
 router.post("/create-checkout-session", authUser, async (req, res) => {
   try {
     const { products } = req.body;
-    console.log("Received products:", products);
+    // console.log("Received products:", products);
 
     const lineItems = products.map((product) => {
       const image =

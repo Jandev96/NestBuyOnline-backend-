@@ -53,6 +53,7 @@ export const createOrder = async (req, res) => {
     const finalPrice = cart.totalPrice - discount + tax;
 
     const orderProducts = cart.products.map(item => ({
+      _id: new mongoose.Types.ObjectId(), // generate unique _id
       productId: item.productId._id,
       name: item.productId.name,
       quantity: item.quantity,
@@ -215,30 +216,40 @@ export const getUserOrders = async (req, res) => {
 };
 
 // Get Order by ID
+;
+
 export const getOrderById = async (req, res) => {
   try {
-    if (!req.params.id) {
+    const { id } = req.params;
+
+    if (!id) {
       return res.status(400).json({ message: "Order ID is missing in the request." });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid order ID" });
     }
 
-    const order = await Order.findById(req.params.id)
-      .populate("products.productId", "name price image")
-      .populate("customerId", "username email")
-      .select("orderDate status estimatedDelivery products totalPrice");
+    const order = await Order.findById(id)
+      .populate("products.productId", "name price images")
+      // .populate()
 
+      // .populate({
+      //   path: "customerId",
+        
+      // });
+      console.log("order populated is ",order.products)
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res.json(order);
+    res.status(200).json(order);
   } catch (error) {
+    console.error("Error fetching order by ID:", error);
     res.status(500).json({ message: "Error fetching order", error: error.message });
   }
 };
+
 
 // Delete Order (Admin only)
 export const deleteOrder = async (req, res) => {
