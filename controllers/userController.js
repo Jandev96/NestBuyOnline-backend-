@@ -133,7 +133,10 @@ export const userProfileUpdate= async (req,res,next)=>{
 export const userLogout = async (req,res,next)=>{
     
     try {
-        res.clearCookie('token')
+        res.clearCookie('token', {
+            sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: true})
         res.json({message:"user successfully logged out"})
         
     } catch (error) {
