@@ -82,6 +82,8 @@ export const createOrder = async (req, res) => {
     const user = await User.findById(customerId);
     const transporter = nodemailer.createTransport({
       service: "Gmail",
+      secure:false,
+
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -162,6 +164,7 @@ export const updateOrderStatus = async (req, res) => {
 
     const transporter = nodemailer.createTransport({
       service: "Gmail",
+      secure:false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
