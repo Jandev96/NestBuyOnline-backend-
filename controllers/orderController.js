@@ -195,7 +195,7 @@ export const updateOrderStatus = async (req, res) => {
 export const getOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate("products.productId", "name price image")
+      .populate("products.productId", "name price images")
       .populate("customerId", "username email")
       .select("customerId orderDate status estimatedDelivery products totalPrice");
 
@@ -209,7 +209,7 @@ export const getOrders = async (req, res) => {
 export const getUserOrders = async (req, res) => {
   try {
     const orders = await Order.find({ customerId: req.user.id })
-      .populate("products.productId", "name price image")
+      .populate("products.productId", "name price images")
       .select("orderDate status estimatedDelivery products totalPrice");
 
     res.json(orders);
