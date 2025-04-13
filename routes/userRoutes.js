@@ -3,6 +3,7 @@ import express from "express"
 import { checkUser, signup, userLogin, userLogout, userProfile, userProfileUpdate } from "../controllers/userController.js"
 import { authUser } from "../middlewares/authUser.js"
 import { authAdmin } from "../middlewares/authAdmin.js"
+import User from "../models/userModel.js"
 
 const router = express.Router()
 
@@ -27,6 +28,11 @@ router.get('/checkuser',authUser,checkUser)
 
 // password change
 router.put('/deactivateUser/:userId',authAdmin)
+
+router.get("/recent",authAdmin, async (req, res) => {
+    const users = await User.find().sort({ createdAt: -1 }).limit(5);
+    res.json(users);
+  });
 // address update
 
 export default router
