@@ -154,7 +154,7 @@ export const updateOrderStatus = async (req, res) => {
       updates,
       { new: true }
     )
-      .populate("products.productId", "name price image")
+      .populate("products.productId", "name price images")
       .populate("customerId", "email username")
       .select("status estimatedDelivery customerId trackingNumber");
 
@@ -172,12 +172,12 @@ export const updateOrderStatus = async (req, res) => {
     });
 
     const mailOptions = {
-      from: `"YourShop" <${process.env.EMAIL_USER}>`,
+      from: `"NestBuy" <${process.env.EMAIL_USER}>`,
       to: updatedOrder.customerId.email,
       subject: `Order Status Updated - ${updatedOrder.status}`,
       html: `
         <h2>Hi ${updatedOrder.customerId.username},</h2>
-        <p>Your order status has been updated to <strong>${updatedOrder.status}</strong>.</p>
+        <p>Your order status has been  <strong>${updatedOrder.status}</strong>.</p>
         <p>Estimated Delivery: ${new Date(updatedOrder.estimatedDelivery).toDateString()}</p>
         ${updatedOrder.trackingNumber ? `<p>Tracking Number: <strong>${updatedOrder.trackingNumber}</strong></p>` : ""}
       `,
