@@ -36,7 +36,7 @@ export const addReview = async (req, res) => {
 export const getReviews = async (req, res) => {
     try {
         const reviews = await Review.find({ productId: req.params.productId })
-            .populate("userId", "name");  
+            .populate("userId", "username");  
 
         if (!reviews.length) {
             return res.status(404).json({ message: "No reviews found for this product" });

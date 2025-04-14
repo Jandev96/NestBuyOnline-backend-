@@ -34,5 +34,10 @@ router.get("/recent",authAdmin, async (req, res) => {
     res.json(users);
   });
 // address update
+router.get("/",authAdmin, async (req, res) => {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users);
+  });
+
 
 export default router
