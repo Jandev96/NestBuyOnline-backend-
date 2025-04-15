@@ -5,8 +5,8 @@ export const addToWishlist = async (req, res) => {
   try {
     // Authenticate the user
     authUser(req, res, async () => {
-      const { productId } = req.body;
-      const userId = req.user.id; // Assuming the user ID is stored in the decoded token
+      const { productId } = req.params;
+      const userId = req.user.id;
 
       // Find the user's wishlist
       let wishlist = await Wishlist.findOne({ user: userId });
@@ -43,43 +43,36 @@ export const addToWishlist = async (req, res) => {
 
 
 
+
 export const removeFromWishlist = async (req, res) => {
-    try {
-      // Authenticate the user
-      authUser(req, res, async () => {
-        const { productId } = req.body;
-        const userId = req.user.id; // Assuming the user ID is stored in the decoded token
-  
-        // Find the user's wishlist
-        const wishlist = await Wishlist.findOne({ user: userId });
-  
-        // If the wishlist doesn't exist, return an error
-        if (!wishlist) {
-          return res.status(404).json({ message: 'Wishlist not found' });
-        }
-  
-        // Find the index of the product in the wishlist
-        const productIndex = wishlist.products.findIndex(
-          (item) => item.productId.toString() === productId
-        );
-  
-        // If the product doesn't exist in the wishlist, return an error
-        if (productIndex === -1) {
-          return res.status(404).json({ message: 'Product not found in wishlist' });
-        }
-  
-        // Remove the product from the wishlist
-        wishlist.products.splice(productIndex, 1);
-  
-        // Save the updated wishlist
-        await wishlist.save();
-  
-        res.status(200).json({ message: 'Product removed from wishlist', wishlist });
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  };
+  try {
+    authUser(req, res, async () => {
+      const { productId } = req.params;  // Use req.params for URL parameter
+      const userId = req.user.id;
+
+      const wishlist = await Wishlist.findOne({ user: userId });
+
+      if (!wishlist) {
+        return res.status(404).json({ message: 'Wishlist not found' });
+      }
+
+      const productIndex = wishlist.products.findIndex(
+        (item) => item.productId.toString() === productId
+      );
+
+      if (productIndex === -1) {
+        return res.status(404).json({ message: 'Product not found in wishlist' });
+      }
+
+      wishlist.products.splice(productIndex, 1);
+      await wishlist.save();
+
+      res.status(200).json({ message: 'Product removed from wishlist', wishlist });
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 
   export const getWishlist = async (req, res) => {

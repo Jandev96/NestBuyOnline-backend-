@@ -6,11 +6,11 @@ const router = express.Router()
 // // Add a product to the wishlist
 // POST /api/wishlist
 
-router.post('/',authUser,addToWishlist)
+router.post('/:productId',authUser,addToWishlist)
 
 // // Remove a product from the wishlist
 // DELETE /api/wishlist/:productId
-router.delete('/',authUser,removeFromWishlist)
+router.delete('/:productId',authUser,removeFromWishlist)
 // // Get the user’s wishlist
 // GET /api/wishlist
 router.get('/',authUser,getWishlist)
