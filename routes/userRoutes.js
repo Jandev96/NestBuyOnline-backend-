@@ -4,6 +4,7 @@ import { checkUser, signup, userLogin, userLogout, userProfile, userProfileUpdat
 import { authUser } from "../middlewares/authUser.js"
 import { authAdmin } from "../middlewares/authAdmin.js"
 import User from "../models/userModel.js"
+import {upload} from "../middlewares/multer.js"
 
 const router = express.Router()
 
@@ -14,7 +15,7 @@ router.post("/login",userLogin)
 // profile
 router.get("/profile",authUser,userProfile)
 // profile edit
-router.put("/update",authUser,userProfileUpdate)
+router.put("/update",authUser,upload.single("profilePic"), userProfileUpdate)
 
 // profile deactivate
 router.put("/deactivate",authAdmin)

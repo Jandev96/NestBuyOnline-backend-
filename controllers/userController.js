@@ -1,6 +1,9 @@
 import User from "../models/userModel.js"
 import bcrypt from "bcrypt";
 import { generateToken } from "../utils/token.js";
+import fs from "fs";
+import path from "path";
+import { cloudinaryInstance } from "../config/cloudinary.js";
 
 
 export const signup = async (req, res, next) => {
@@ -112,23 +115,47 @@ export const userProfile =async (req, res, next)=>{
     }
 }
 
-export const userProfileUpdate= async (req,res,next)=>{
+export const userProfileUpdate = async (req, res, next) => {
     try {
-        const {username,email,password,address,profilePic} =req.body
-
-        const hashPassword = bcrypt.hashSync(password, 10);
-
-        const userId=req.user.id
-        const userupdateData= await User.findByIdAndUpdate(userId,{username,email,password:hashPassword,address,profilePic},{new:true})
-       
-        res.json({data:userupdateData,message:"user profile updated"})
-    
-        
+      const { username, email, password, address } = req.body;
+      const file = req.file;
+  
+      const userId = req.user.id;
+      let profilePicUrl;
+  
+      if (file) {
+        const filePath = path.resolve(file.path);
+  
+        const cloudinaryRes = await cloudinaryInstance.uploader.upload(filePath, {
+          folder: "profile_pictures",
+        });
+  
+        profilePicUrl = cloudinaryRes.secure_url;
+  
+        // Delete file from local storage after upload
+        fs.unlinkSync(filePath);
+      }
+  
+      const hashedPassword = bcrypt.hashSync(password, 10);
+  
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          username,
+          email,
+          password: hashedPassword,
+          address,
+          ...(profilePicUrl && { profilePic: profilePicUrl }),
+        },
+        { new: true }
+      );
+  
+      res.json({ data: updatedUser, message: "User profile updated" });
     } catch (error) {
-        res.status(error.statusCode || 500).json({ message: error.message || "Internal server error" });
-        
+      console.error("Update failed:", error);
+      res.status(error.statusCode || 500).json({ message: error.message || "Internal server error" });
     }
-}
+  };
 
 export const userLogout = async (req,res,next)=>{
     
