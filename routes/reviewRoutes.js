@@ -1,5 +1,5 @@
 import express from "express"
-import { addReview, deleteReview, getReviews } from "../controllers/reviewController.js";
+import { addReview, deleteReview, getReviews,updateReview } from "../controllers/reviewController.js";
 import { authUser } from "../middlewares/authUser.js";
 
 
@@ -14,6 +14,7 @@ router.post("/",authUser, addReview );
 router.get("/:productId",authUser, getReviews);
 router.delete("/:reviewId",authUser, deleteReview );
 router.delete("/:reviewId",authAdmin, deleteReview );
+router.put("/update/:reviewId", authUser, updateReview);
 
 
 export default router
