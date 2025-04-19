@@ -40,5 +40,17 @@ router.get("/",authAdmin, async (req, res) => {
     res.json(users);
   });
 
+  router.get('/me', (req, res) => {
+    const token = req.cookies?.token;
+    if (!token) return res.status(401).json({ message: 'Not authenticated' });
+  
+    try {
+      const user = jwt.verify(token, process.env.JWT_SECRET); // or however you're verifying
+      res.json({ data: user }); // or return user data from DB
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+  });
+
 
 export default router

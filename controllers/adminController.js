@@ -166,3 +166,57 @@ export const checkadmin= async( req,res,next)=>{
         res.status(error.statusCode || 500).json({message: error.message} || "internal server")
     }
 }
+
+// controller/adminController.js
+
+export const getAllAdmins = async (req, res) => {
+    try {
+      const { page = 1, limit = 8, search = '', sort = 'newest' } = req.query;
+  
+      const query = {
+        $or: [
+          { username: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+        ],
+      };
+  
+      const total = await Admin.countDocuments(query);
+      const admins = await Admin.find(query)
+        .sort(sort === 'newest' ? { createdAt: -1 } : { createdAt: 1 })
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+  
+      res.json({
+        data: admins,
+        total,
+        message: 'Admins fetched successfully',
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch admins', error });
+    }
+  };
+  
+  export const updateAdminById = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { username, email, address, role, isActive, profilePic } = req.body;
+  
+      const admin = await Admin.findById(id);
+      if (!admin) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+  
+      admin.username = username || admin.username;
+      admin.email = email || admin.email;
+      admin.address = address || admin.address;
+      admin.role = role || admin.role;
+      admin.profilePic = profilePic || admin.profilePic;
+      admin.isActive = isActive !== undefined ? isActive : admin.isActive;
+  
+      const updatedAdmin = await admin.save();
+      res.json({ data: updatedAdmin, message: "Admin updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Update failed", error });
+    }
+  };
+  
