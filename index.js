@@ -11,8 +11,8 @@ import cors from 'cors'
 app.use(
     cors({
         origin: [
-            "http://localhost:5173",
-            "https://nestbuyonlinenew.vercel.app"
+            "*"
+            
         ], 
         credentials: true, 
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
