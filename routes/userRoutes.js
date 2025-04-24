@@ -1,7 +1,7 @@
 
 
 import express from "express"
-import { checkUser, signup, userLogin, userLogout, userProfile, userProfileUpdate } from "../controllers/userController.js"
+import { checkUser, signup, userLogin, userLogout, userProfile, userProfileUpdate,forgotPassword,resetPassword } from "../controllers/userController.js"
 import { authUser } from "../middlewares/authUser.js"
 import { authAdmin } from "../middlewares/authAdmin.js"
 import User from "../models/userModel.js"
@@ -17,6 +17,10 @@ router.post("/login",userLogin)
 router.get("/profile",authUser,userProfile)
 // profile edit
 router.put("/update",authUser,upload.single("profilePic"), userProfileUpdate)
+
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
 // profile deactivate
 router.put("/deactivate",authAdmin)

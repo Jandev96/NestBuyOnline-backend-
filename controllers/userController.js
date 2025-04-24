@@ -4,6 +4,8 @@ import { generateToken } from "../utils/token.js";
 import fs from "fs";
 import path from "path";
 import { cloudinaryInstance } from "../config/cloudinary.js";
+import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
 
 
 export const signup = async (req, res, next) => {
@@ -179,3 +181,52 @@ export const checkUser= async( req,res,next)=>{
         res.status(error.statusCode || 500).json({message: error.message} || "internal server")
     }
 }
+
+export const forgotPassword = async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ message: "User not found" });
+  
+      const token = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = Date.now() + 1000 * 60 * 60; // 1 hour
+      await user.save();
+  
+      const resetLink = `${process.env.CLIENT_DOMAIN}/reset-password/${token}`;
+      const message = `Click to reset password: ${resetLink}`;
+  
+      await sendEmail(user.email, "Reset your password", message);
+  
+      res.json({ message: "Password reset link sent" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+  
+  export const resetPassword = async (req, res) => {
+    try {
+      const hashedToken = crypto.createHash("sha256").update(req.params.token).digest("hex");
+  
+      const user = await User.findOne({
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { $gt: Date.now() },
+      });
+  
+      if (!user) return res.status(400).json({ message: "Invalid or expired token" });
+  
+      const { password } = req.body;
+      user.password = bcrypt.hashSync(password, 10);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+  
+      await user.save();
+      res.json({ message: "Password successfully reset" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
